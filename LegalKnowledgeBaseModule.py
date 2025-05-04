@@ -1,3 +1,5 @@
+#LegalKnowledgeBaseModule.py
+
 """
 Legal Knowledge Base for AI Judge System
 Manages and provides access to legal knowledge, statutes, case laws, and principles.
@@ -130,7 +132,43 @@ class LegalPrinciple:
             
         return result
 
+@dataclass
+class LegalTest:
+    """Representation of a legal test or standard."""
+    id: str
+    name: str
+    steps: List[str]
+    applicable_scenarios: List[str]
+    source_precedents: List[str]
+    vector_embedding: Optional[List[float]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary, excluding vector embedding."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "steps": self.steps,
+            "applicable_scenarios": self.applicable_scenarios,
+            "source_precedents": self.source_precedents
+        }
+
+@dataclass
+class Jurisdiction:
+    """Representation of jurisdictional information."""
+    id: str
+    name: str
+    hierarchy: str
+    court_structure: Dict[str, Any]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "hierarchy": self.hierarchy,
+            "court_structure": self.court_structure
+        }
+        
 class VectorDBInterface:
     """
     Interface for vector database operations.
@@ -238,15 +276,14 @@ class LegalKnowledgeBase:
         """
         self.db_path = db_path
         self.vector_db = VectorDBInterface()
-        
+        self.conn = sqlite3.connect(self.db_path, uri=True, check_same_thread=False)
+        self.cursor = self.conn.cursor()
         # Create database if it doesn't exist
         self._initialize_db()
         
     def _initialize_db(self):
         """Initialize the SQLite database with required tables."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+        cursor = self.conn.cursor()
         # Create statutes table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS statutes (
@@ -301,8 +338,30 @@ class LegalKnowledgeBase:
         )
         ''')
         
-        conn.commit()
-        conn.close()
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS legal_tests (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            steps TEXT,
+            applicable_scenarios TEXT,
+            source_precedents TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        ''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS jurisdictions (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            hierarchy TEXT NOT NULL,
+            court_structure TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        ''')
+        
+        self.conn.commit()
         
     def add_statute(self, statute: LegalStatute) -> bool:
         """
@@ -315,8 +374,7 @@ class LegalKnowledgeBase:
             Success status
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            cursor = self.conn.cursor()
             
             # Convert sections, citations to JSON strings
             sections_json = json.dumps(statute.sections) if statute.sections else None
@@ -336,8 +394,7 @@ class LegalKnowledgeBase:
                 sections_json, citations_json, now, now
             ))
             
-            conn.commit()
-            conn.close()
+            self.conn.commit()
             
             # Add vector embedding if available
             if statute.vector_embedding:
@@ -360,8 +417,7 @@ class LegalKnowledgeBase:
             Success status
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            cursor = self.conn.cursor()
             
             # Convert lists and dicts to JSON strings
             judges_json = json.dumps(case.judges) if case.judges else None
@@ -383,8 +439,7 @@ class LegalKnowledgeBase:
                 case.outcome, principles_json, related_json, now, now
             ))
             
-            conn.commit()
-            conn.close()
+            self.conn.commit()
             
             # Add vector embedding if available
             if case.vector_embedding:
@@ -407,8 +462,7 @@ class LegalKnowledgeBase:
             Success status
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            cursor = self.conn.cursor()
             
             # Convert lists to JSON strings
             source_cases_json = json.dumps(principle.source_cases) if principle.source_cases else None
@@ -429,8 +483,8 @@ class LegalKnowledgeBase:
                 now, now
             ))
             
-            conn.commit()
-            conn.close()
+            self.conn.commit()
+            
             
             # Add vector embedding if available
             if principle.vector_embedding:
@@ -453,9 +507,8 @@ class LegalKnowledgeBase:
             LegalStatute object or None if not found
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
             cursor.execute("SELECT * FROM statutes WHERE id = ?", (statute_id,))
             row = cursor.fetchone()
@@ -479,7 +532,6 @@ class LegalKnowledgeBase:
                 citations=citations
             )
             
-            conn.close()
             return statute
             
         except Exception as e:
@@ -497,9 +549,8 @@ class LegalKnowledgeBase:
             CaseLaw object or None if not found
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
             cursor.execute("SELECT * FROM case_law WHERE id = ?", (case_id,))
             row = cursor.fetchone()
@@ -528,8 +579,7 @@ class LegalKnowledgeBase:
                 legal_principles=legal_principles,
                 related_cases=related_cases
             )
-            
-            conn.close()
+
             return case
             
         except Exception as e:
@@ -547,9 +597,8 @@ class LegalKnowledgeBase:
             LegalPrinciple object or None if not found
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
             cursor.execute("SELECT * FROM legal_principles WHERE id = ?", (principle_id,))
             row = cursor.fetchone()
@@ -573,15 +622,99 @@ class LegalKnowledgeBase:
                 exceptions=exceptions
             )
             
-            conn.close()
             return principle
             
         except Exception as e:
             logger.error(f"Error retrieving legal principle: {str(e)}")
             return None
 
-    def search_statutes(self, query: str, jurisdiction: Optional[str] = None, 
-                    category: Optional[str] = None, limit: int = 10) -> List[LegalStatute]:
+    def add_legal_test(self, test: LegalTest) -> bool:
+        """Add a legal test to the knowledge base."""
+        try:
+            cursor = self.conn.cursor()
+            steps_json = json.dumps(test.steps)
+            scenarios_json = json.dumps(test.applicable_scenarios)
+            precedents_json = json.dumps(test.source_precedents)
+            now = datetime.now().isoformat()
+            cursor.execute('''
+            INSERT OR REPLACE INTO legal_tests (
+                id, name, steps, applicable_scenarios, source_precedents, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                test.id, test.name, steps_json, scenarios_json, precedents_json, now, now
+            ))
+            self.conn.commit()
+            if test.vector_embedding:
+                self.vector_db.add_vector("tests", test.id, test.vector_embedding)
+            return True
+        except Exception as e:
+            logger.error(f"Error adding legal test: {str(e)}")
+            return False
+
+    def get_legal_test(self, test_id: str) -> Optional[LegalTest]:
+        """Retrieve a legal test by ID."""
+        try:
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM legal_tests WHERE id = ?", (test_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            steps = json.loads(row['steps']) if row['steps'] else None
+            scenarios = json.loads(row['applicable_scenarios']) if row['applicable_scenarios'] else None
+            precedents = json.loads(row['source_precedents']) if row['source_precedents'] else None
+            return LegalTest(
+                id=row['id'],
+                name=row['name'],
+                steps=steps,
+                applicable_scenarios=scenarios,
+                source_precedents=precedents
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving legal test: {str(e)}")
+            return None
+
+    def add_jurisdiction(self, jurisdiction: Jurisdiction) -> bool:
+        """Add a jurisdiction to the knowledge base."""
+        try:
+            cursor = self.conn.cursor()
+            court_structure_json = json.dumps(jurisdiction.court_structure)
+            now = datetime.now().isoformat()
+            cursor.execute('''
+            INSERT OR REPLACE INTO jurisdictions (
+                id, name, hierarchy, court_structure, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                jurisdiction.id, jurisdiction.name, jurisdiction.hierarchy, court_structure_json, now, now
+            ))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding jurisdiction: {str(e)}")
+            return False
+
+    def get_jurisdiction(self, jurisdiction_id: str) -> Optional[Jurisdiction]:
+        """Retrieve a jurisdiction by ID."""
+        try:
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM jurisdictions WHERE id = ?", (jurisdiction_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            court_structure = json.loads(row['court_structure']) if row['court_structure'] else None
+            return Jurisdiction(
+                id=row['id'],
+                name=row['name'],
+                hierarchy=row['hierarchy'],
+                court_structure=court_structure
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving jurisdiction: {str(e)}")
+            return None
+
+    def search_statutes(self, query: str, jurisdiction: Optional[str] = None,
+                        category: Optional[str] = None, limit: int = 10) -> List[LegalStatute]:
         """
         Search for statutes by text query and optional filters.
         
@@ -590,41 +723,60 @@ class LegalKnowledgeBase:
             jurisdiction: Optional jurisdiction filter
             category: Optional category filter
             limit: Maximum number of results to return
-            
+        
         Returns:
             List of matching LegalStatute objects
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
-            query_params = [f"%{query}%", f"%{query}%"]
+            # Build the query with parameter placeholders
+            params = []
+            
+            # Always search in both title and text
             sql = """
-            SELECT * FROM statutes 
-            WHERE (title LIKE ? OR text LIKE ?) 
+            SELECT * FROM statutes
+            WHERE (title LIKE ? OR text LIKE ?)
             """
+            params.extend([f"%{query}%", f"%{query}%"])
             
+            # Add filters if provided
             if jurisdiction:
-                sql += "AND jurisdiction = ? "
-                query_params.append(jurisdiction)
-                
-            if category:
-                sql += "AND category = ? "
-                query_params.append(category)
-                
-            sql += "LIMIT ?"
-            query_params.append(limit)
+                sql += " AND jurisdiction = ? "
+                params.append(jurisdiction)
             
-            cursor.execute(sql, tuple(query_params))
+            if category:
+                sql += " AND category = ? "
+                params.append(category)
+            
+            # Add limit
+            sql += " LIMIT ? "
+            params.append(limit)
+            
+            # Execute the query
+            cursor.execute(sql, params)
             rows = cursor.fetchall()
             
+            # Process results
             results = []
             for row in rows:
-                # Parse JSON fields
-                sections = json.loads(row['sections']) if row['sections'] else None
-                citations = json.loads(row['citations']) if row['citations'] else None
+                # Handle JSON fields properly
+                sections = None 
+                if row['sections'] and row['sections'] != 'null':
+                    try:
+                        sections = json.loads(row['sections'])
+                    except:
+                        sections = None
+                        
+                citations = None
+                if row['citations'] and row['citations'] != 'null':
+                    try:
+                        citations = json.loads(row['citations'])
+                    except:
+                        citations = None
                 
+                # Create statute object and add to results
                 statute = LegalStatute(
                     id=row['id'],
                     title=row['title'],
@@ -632,37 +784,39 @@ class LegalKnowledgeBase:
                     jurisdiction=row['jurisdiction'],
                     category=row['category'],
                     effective_date=row['effective_date'],
-                    last_amended=row['last_amended'],
+                    last_amended=row['last_amended'] if 'last_amended' in row and row['last_amended'] else None,
                     sections=sections,
                     citations=citations
                 )
                 results.append(statute)
             
-            conn.close()
             return results
-            
+        
         except Exception as e:
             logger.error(f"Error searching statutes: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     def search_case_law(self, query: str, jurisdiction: Optional[str] = None, 
-                    court: Optional[str] = None, limit: int = 10) -> List[CaseLaw]:
+                        court_level: Optional[str] = None, date_range: Optional[Dict[str, str]] = None, 
+                        limit: int = 20) -> List[CaseLaw]:
         """
         Search for case law by text query and optional filters.
         
         Args:
             query: Text query to search for
             jurisdiction: Optional jurisdiction filter
-            court: Optional court filter
-            limit: Maximum number of results to return
+            court_level: Optional court level filter (previously 'court')
+            date_range: Optional dictionary with 'start' and 'end' dates
+            limit: Maximum number of results to return (default 20)
             
         Returns:
             List of matching CaseLaw objects
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
             query_params = [f"%{query}%", f"%{query}%", f"%{query}%"]
             sql = """
@@ -674,9 +828,19 @@ class LegalKnowledgeBase:
                 sql += "AND jurisdiction = ? "
                 query_params.append(jurisdiction)
                 
-            if court:
+            if court_level:
                 sql += "AND court = ? "
-                query_params.append(court)
+                query_params.append(court_level)
+                
+            if date_range:
+                start = date_range.get('start')
+                end = date_range.get('end')
+                if start:
+                    sql += "AND date_decided >= ? "
+                    query_params.append(start)
+                if end:
+                    sql += "AND date_decided <= ? "
+                    query_params.append(end)
                 
             sql += "LIMIT ?"
             query_params.append(limit)
@@ -686,7 +850,6 @@ class LegalKnowledgeBase:
             
             results = []
             for row in rows:
-                # Parse JSON fields
                 judges = json.loads(row['judges']) if row['judges'] else None
                 parties = json.loads(row['parties']) if row['parties'] else None
                 legal_principles = json.loads(row['legal_principles']) if row['legal_principles'] else None
@@ -709,14 +872,13 @@ class LegalKnowledgeBase:
                 )
                 results.append(case)
             
-            conn.close()
             return results
             
         except Exception as e:
             logger.error(f"Error searching case law: {str(e)}")
             return []
 
-    def search_legal_principles(self, query: str, category: Optional[str] = None, 
+    def search_legal_principles(self, query: str, category: Optional[str] = None,
                             jurisdiction: Optional[str] = None, limit: int = 10) -> List[LegalPrinciple]:
         """
         Search for legal principles by text query and optional filters.
@@ -731,37 +893,66 @@ class LegalKnowledgeBase:
             List of matching LegalPrinciple objects
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
-            query_params = [f"%{query}%", f"%{query}%"]
+            # Build the query with parameter placeholders
+            params = []
+            
+            # Always search in both name and description
             sql = """
-            SELECT * FROM legal_principles 
-            WHERE (name LIKE ? OR description LIKE ?) 
+            SELECT * FROM legal_principles
+            WHERE (name LIKE ? OR description LIKE ?)
             """
+            params.extend([f"%{query}%", f"%{query}%"])
             
+            # Add filters if provided
             if category:
-                sql += "AND category = ? "
-                query_params.append(category)
-                
-            if jurisdiction:
-                sql += "AND jurisdiction = ? "
-                query_params.append(jurisdiction)
-                
-            sql += "LIMIT ?"
-            query_params.append(limit)
+                sql += " AND category = ? "
+                params.append(category)
             
-            cursor.execute(sql, tuple(query_params))
+            if jurisdiction:
+                sql += " AND jurisdiction = ? "
+                params.append(jurisdiction)
+            
+            # Add limit
+            sql += " LIMIT ? "
+            params.append(limit)
+            
+            # For debugging
+            print(f"SQL: {sql}")
+            print(f"Params: {params}")
+            
+            # Execute the query
+            cursor.execute(sql, params)
             rows = cursor.fetchall()
             
+            # Process results
             results = []
             for row in rows:
-                # Parse JSON fields
-                source_cases = json.loads(row['source_cases']) if row['source_cases'] else None
-                related_principles = json.loads(row['related_principles']) if row['related_principles'] else None
-                exceptions = json.loads(row['exceptions']) if row['exceptions'] else None
+                # Handle JSON fields properly
+                source_cases = None
+                if row['source_cases'] and row['source_cases'] != 'null':
+                    try:
+                        source_cases = json.loads(row['source_cases'])
+                    except:
+                        source_cases = None
+                        
+                related_principles = None
+                if row['related_principles'] and row['related_principles'] != 'null':
+                    try:
+                        related_principles = json.loads(row['related_principles'])
+                    except:
+                        related_principles = None
+                        
+                exceptions = None
+                if row['exceptions'] and row['exceptions'] != 'null':
+                    try:
+                        exceptions = json.loads(row['exceptions'])
+                    except:
+                        exceptions = None
                 
+                # Create principle object and add to results
                 principle = LegalPrinciple(
                     id=row['id'],
                     name=row['name'],
@@ -774,11 +965,12 @@ class LegalKnowledgeBase:
                 )
                 results.append(principle)
             
-            conn.close()
             return results
-            
+        
         except Exception as e:
             logger.error(f"Error searching legal principles: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     def semantic_search(self, query_vector: List[float], collection: str, top_k: int = 5) -> List[Union[LegalStatute, CaseLaw, LegalPrinciple]]:
@@ -919,9 +1111,8 @@ class LegalKnowledgeBase:
         """
         try:
             # Get all data
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+            self.conn.row_factory = sqlite3.Row
+            cursor = self.conn.cursor()
             
             # Get statutes
             cursor.execute("SELECT * FROM statutes")
@@ -989,7 +1180,6 @@ class LegalKnowledgeBase:
                 
                 principles.append(principle_dict)
                 
-            conn.close()
             
             # Create output data
             output_data = {
@@ -1009,61 +1199,176 @@ class LegalKnowledgeBase:
             logger.error(f"Error exporting to JSON: {str(e)}")
             return False
 
+    def ingest_document(self, document_content: str, document_type: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Process and structure a raw legal document (placeholder)."""
+        logger.info(f"Ingesting document of type {document_type}")
+        # TODO: Implement NLP-based ingestion logic
+        return {"status": "success", "message": "Document ingested (placeholder)"}
+
+    def batch_ingest(self, document_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Batch process multiple documents (placeholder)."""
+        results = []
+        for doc in document_list:
+            result = self.ingest_document(doc['content'], doc['type'], doc.get('metadata'))
+            results.append(result)
+        return results
+
+    def extract_citations(self, text: str) -> List[Dict[str, Any]]:
+        """Extract citations from text (placeholder)."""
+        logger.info("Extracting citations")
+        # TODO: Implement citation extraction logic
+        return [{"citation": "Sample Citation", "type": "statute"}]
+
+    def extract_legal_principles(self, text: str) -> List[Dict[str, Any]]:
+        """Extract legal principles from text (placeholder)."""
+        logger.info("Extracting legal principles")
+        # TODO: Implement principle extraction logic
+        return [{"principle": "Sample Principle", "description": "Description"}]
+
     def get_statistics(self) -> Dict[str, int]:
-    """
-    Get statistics about the knowledge base.
+        """
+        Get statistics about the knowledge base.
+        
+        Returns:
+            Dictionary with count statistics
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            # Count statutes
+            cursor.execute("SELECT COUNT(*) FROM statutes")
+            statutes_count = cursor.fetchone()[0]
+            
+            # Count case law
+            cursor.execute("SELECT COUNT(*) FROM case_law")
+            cases_count = cursor.fetchone()[0]
+            
+            # Count legal principles
+            cursor.execute("SELECT COUNT(*) FROM legal_principles")
+            principles_count = cursor.fetchone()[0]
+            
+            # Count by jurisdiction for statutes
+            cursor.execute("SELECT jurisdiction, COUNT(*) FROM statutes GROUP BY jurisdiction")
+            statutes_by_jurisdiction = {row[0]: row[1] for row in cursor.fetchall()}
+            
+            # Count by jurisdiction for case law
+            cursor.execute("SELECT jurisdiction, COUNT(*) FROM case_law GROUP BY jurisdiction")
+            cases_by_jurisdiction = {row[0]: row[1] for row in cursor.fetchall()}
+            
+            # Count by category for statutes
+            cursor.execute("SELECT category, COUNT(*) FROM statutes GROUP BY category")
+            statutes_by_category = {row[0]: row[1] for row in cursor.fetchall()}
+            
+            # Count by category for legal principles
+            cursor.execute("SELECT category, COUNT(*) FROM legal_principles GROUP BY category")
+            principles_by_category = {row[0]: row[1] for row in cursor.fetchall()}
+                        
+            return {
+                'total_statutes': statutes_count,
+                'total_cases': cases_count,
+                'total_principles': principles_count,
+                'statutes_by_jurisdiction': statutes_by_jurisdiction,
+                'cases_by_jurisdiction': cases_by_jurisdiction,
+                'statutes_by_category': statutes_by_category,
+                'principles_by_category': principles_by_category
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting statistics: {str(e)}")
+            return {
+                'total_statutes': 0,
+                'total_cases': 0,
+                'total_principles': 0
+            }
+                   
+    def add_entry(self, entry_type: str, entry_data: Dict[str, Any]) -> bool:
+        """Generic method to add an entry based on its type."""
+        valid, errors = self.validate_entry(entry_type, entry_data)
+        if not valid:
+            logger.error(f"Validation errors: {errors}")
+            return False
+        if entry_type == "statute":
+            statute = LegalStatute(**entry_data)
+            return self.add_statute(statute)
+        elif entry_type == "case_law":
+            case = CaseLaw(**entry_data)
+            return self.add_case_law(case)
+        elif entry_type == "legal_principle":
+            principle = LegalPrinciple(**entry_data)
+            return self.add_legal_principle(principle)
+        elif entry_type == "legal_test":
+            test = LegalTest(**entry_data)
+            return self.add_legal_test(test)
+        elif entry_type == "jurisdiction":
+            jurisdiction = Jurisdiction(**entry_data)
+            return self.add_jurisdiction(jurisdiction)
+        else:
+            logger.error(f"Unknown entry type: {entry_type}")
+            return False
     
-    Returns:
-        Dictionary with count statistics
-    """
-    try:
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def update_entry(self, entry_type: str, entry_id: str, updated_data: Dict[str, Any]) -> bool:
+        """Generic method to update an entry based on its type."""
+        if entry_type == "statute":
+            return self.update_statute(entry_id, updated_data)
+        elif entry_type == "case_law":
+            return self.update_case_law(entry_id, updated_data)
+        elif entry_type == "legal_principle":
+            return self.update_legal_principle(entry_id, updated_data)
+        elif entry_type == "legal_test":
+            return self.update_legal_test(entry_id, updated_data)
+        elif entry_type == "jurisdiction":
+            return self.update_jurisdiction(entry_id, updated_data)
+        else:
+            logger.error(f"Unknown entry type: {entry_type}")
+            return False
+
+    def update_statute(self, statute_id: str, updated_data: Dict[str, Any]) -> bool:
+        """Update a statute's fields."""
+        try:
+            cursor = self.conn.cursor()
+            updated_data['updated_at'] = datetime.now().isoformat()
+            if 'sections' in updated_data:
+                updated_data['sections'] = json.dumps(updated_data['sections'])
+            if 'citations' in updated_data:
+                updated_data['citations'] = json.dumps(updated_data['citations'])
+            set_clause = ", ".join([f"{key} = ?" for key in updated_data])
+            params = list(updated_data.values()) + [statute_id]
+            sql = f"UPDATE statutes SET {set_clause} WHERE id = ?"
+            cursor.execute(sql, params)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating statute: {str(e)}")
+            return False
         
-        # Count statutes
-        cursor.execute("SELECT COUNT(*) FROM statutes")
-        statutes_count = cursor.fetchone()[0]
-        
-        # Count case law
-        cursor.execute("SELECT COUNT(*) FROM case_law")
-        cases_count = cursor.fetchone()[0]
-        
-        # Count legal principles
-        cursor.execute("SELECT COUNT(*) FROM legal_principles")
-        principles_count = cursor.fetchone()[0]
-        
-        # Count by jurisdiction for statutes
-        cursor.execute("SELECT jurisdiction, COUNT(*) FROM statutes GROUP BY jurisdiction")
-        statutes_by_jurisdiction = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        # Count by jurisdiction for case law
-        cursor.execute("SELECT jurisdiction, COUNT(*) FROM case_law GROUP BY jurisdiction")
-        cases_by_jurisdiction = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        # Count by category for statutes
-        cursor.execute("SELECT category, COUNT(*) FROM statutes GROUP BY category")
-        statutes_by_category = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        # Count by category for legal principles
-        cursor.execute("SELECT category, COUNT(*) FROM legal_principles GROUP BY category")
-        principles_by_category = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        conn.close()
-        
-        return {
-            'total_statutes': statutes_count,
-            'total_cases': cases_count,
-            'total_principles': principles_count,
-            'statutes_by_jurisdiction': statutes_by_jurisdiction,
-            'cases_by_jurisdiction': cases_by_jurisdiction,
-            'statutes_by_category': statutes_by_category,
-            'principles_by_category': principles_by_category
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting statistics: {str(e)}")
-        return {
-            'total_statutes': 0,
-            'total_cases': 0,
-            'total_principles': 0
-        }
+    def validate_entry(self, entry_type: str, entry_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Validate entry data based on its type."""
+        errors = []
+        if entry_type == "statute":
+            required_fields = ["id", "title", "text", "jurisdiction", "category", "effective_date"]
+            for field in required_fields:
+                if field not in entry_data:
+                    errors.append(f"Missing required field: {field}")
+        elif entry_type == "case_law":
+            required_fields = ["id", "title", "citation", "court", "date_decided", "jurisdiction", "summary", "full_text"]
+            for field in required_fields:
+                if field not in entry_data:
+                    errors.append(f"Missing required field: {field}")
+        elif entry_type == "legal_principle":
+            required_fields = ["id", "name", "description", "category"]
+            for field in required_fields:
+                if field not in entry_data:
+                    errors.append(f"Missing required field: {field}")
+        elif entry_type == "legal_test":
+            required_fields = ["id", "name", "steps", "applicable_scenarios", "source_precedents"]
+            for field in required_fields:
+                if field not in entry_data:
+                    errors.append(f"Missing required field: {field}")
+        elif entry_type == "jurisdiction":
+            required_fields = ["id", "name", "hierarchy", "court_structure"]
+            for field in required_fields:
+                if field not in entry_data:
+                    errors.append(f"Missing required field: {field}")
+        if errors:
+            return False, errors
+        return True, []

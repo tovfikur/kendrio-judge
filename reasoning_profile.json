@@ -1,0 +1,145 @@
+{
+  "case_id": "case_12345",
+  "legal_issues": [
+    {
+      "id": "issue_assault_case_12345",
+      "description": "Simple Assault and Battery",
+      "claim_type": "CIVIL",
+      "elements": [
+        "intent_to_harm",
+        "physical_contact",
+        "injury_occurred",
+        "no_justification"
+      ],
+      "burden_standard": "PREPONDERANCE",
+      "burden_party": "PLAINTIFF"
+    }
+  ],
+  "applicable_rules": [
+    {
+      "id": "rule_assault_1",
+      "rule_text": "Intent to cause harmful or offensive contact",
+      "source_type": "CASELAW",
+      "source_id": "case_123",
+      "jurisdiction": "STATE"
+    },
+    {
+      "id": "rule_assault_2",
+      "rule_text": "Actual harmful or offensive contact occurred",
+      "source_type": "STATUTE",
+      "source_id": "statute_456",
+      "jurisdiction": "STATE"
+    },
+    {
+      "id": "rule_self_defense_1",
+      "rule_text": "A person may use reasonable force to defend themselves",
+      "source_type": "CASELAW",
+      "source_id": "case_789",
+      "jurisdiction": "STATE"
+    }
+  ],
+  "element_analyses": {
+    "issue_assault_case_12345_element_intent_to_harm": {
+      "element_id": "issue_assault_case_12345_element_intent_to_harm",
+      "element_text": "intent_to_harm",
+      "satisfied": false,
+      "confidence_score": 1.0,
+      "supporting_evidence": [],
+      "contradicting_evidence": [
+        "evidence_4"
+      ],
+      "reasoning_chain": [
+        "Element to prove: intent_to_harm",
+        "No supporting evidence found.",
+        "Found 1 items of contradicting evidence:",
+        "  - Contradicting evidence 1: evidence_4"
+      ]
+    },
+    "issue_assault_case_12345_element_physical_contact": {
+      "element_id": "issue_assault_case_12345_element_physical_contact",
+      "element_text": "physical_contact",
+      "satisfied": true,
+      "confidence_score": 1.0,
+      "supporting_evidence": [
+        "evidence_2"
+      ],
+      "contradicting_evidence": [],
+      "reasoning_chain": [
+        "Element to prove: physical_contact",
+        "Found 1 items of supporting evidence:",
+        "  - Supporting evidence 1: evidence_2",
+        "No contradicting evidence found."
+      ]
+    },
+    "issue_assault_case_12345_element_injury_occurred": {
+      "element_id": "issue_assault_case_12345_element_injury_occurred",
+      "element_text": "injury_occurred",
+      "satisfied": true,
+      "confidence_score": 1.0,
+      "supporting_evidence": [
+        "evidence_3"
+      ],
+      "contradicting_evidence": [],
+      "reasoning_chain": [
+        "Element to prove: injury_occurred",
+        "Found 1 items of supporting evidence:",
+        "  - Supporting evidence 1: evidence_3",
+        "No contradicting evidence found."
+      ]
+    },
+    "issue_assault_case_12345_element_no_justification": {
+      "element_id": "issue_assault_case_12345_element_no_justification",
+      "element_text": "no_justification",
+      "satisfied": false,
+      "confidence_score": 0.0,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "reasoning_chain": [
+        "Element to prove: no_justification",
+        "No supporting evidence found.",
+        "No contradicting evidence found."
+      ]
+    }
+  },
+  "burden_analyses": {
+    "issue_assault_case_12345": {
+      "standard": "PREPONDERANCE",
+      "party": "PLAINTIFF",
+      "met": false,
+      "confidence_score": 0.75,
+      "explanation": "The Plaintiff has the burden to prove 4 elements under the 'Preponderance' standard. Only 2 out of 4 required elements were satisfied, failing to meet the burden of proof."
+    }
+  },
+  "reasoning_chains": {
+    "issue_assault_case_12345": {
+      "steps": [
+        "Issue: Simple Assault and Battery",
+        "Required standard of proof: Preponderance (burden on Plaintiff)",
+        "Element 1: intent_to_harm - not satisfied",
+        "  \u2022 No supporting evidence found.",
+        "  \u2022 Found 1 items of contradicting evidence:",
+        "  \u2022   - Contradicting evidence 1: evidence_4",
+        "Element 2: physical_contact - satisfied",
+        "  \u2022 Found 1 items of supporting evidence:",
+        "  \u2022   - Supporting evidence 1: evidence_2",
+        "  \u2022 No contradicting evidence found.",
+        "Element 3: injury_occurred - satisfied",
+        "  \u2022 Found 1 items of supporting evidence:",
+        "  \u2022   - Supporting evidence 1: evidence_3",
+        "  \u2022 No contradicting evidence found.",
+        "Element 4: no_justification - not satisfied",
+        "  \u2022 No supporting evidence found.",
+        "  \u2022 No contradicting evidence found.",
+        "Burden of proof: not met",
+        "Explanation: The Plaintiff has the burden to prove 4 elements under the 'Preponderance' standard. Only 2 out of 4 required elements were satisfied, failing to meet the burden of proof."
+      ],
+      "confidence": 0.7499999999999999,
+      "fallback_explanation": "Analysis of Simple Assault and Battery: Not all required elements were proven."
+    }
+  },
+  "conclusion": {
+    "issue_assault_case_12345": false
+  },
+  "overall_confidence": 0.7499999999999999,
+  "explanation": "Analysis of 1 legal issues:\n- Simple Assault and Battery: NOT PROVEN (confidence: 0.75)"
+}

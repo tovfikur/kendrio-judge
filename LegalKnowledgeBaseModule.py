@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 class LegalStatute:
     """Representation of a legal statute or regulation."""
     id: str
-    title: str
     text: str
     jurisdiction: str
-    category: str
-    effective_date: str
+    category: str    
+    title: str  = ""
+    effective_date: str  = ""
     last_amended: Optional[str] = None
     sections: Optional[Dict[str, str]] = None
     citations: Optional[List[str]] = None
@@ -58,13 +58,13 @@ class LegalStatute:
 class CaseLaw:
     """Representation of a case law precedent."""
     id: str
-    title: str
-    citation: str
-    court: str
-    date_decided: str
-    jurisdiction: str
-    summary: str
-    full_text: str
+    title: str = ""
+    citation: str = ""
+    court: str = ""
+    date_decided: str = ""
+    jurisdiction: str = ""
+    summary: str = ""
+    full_text: str = ""
     judges: Optional[List[str]] = None
     parties: Optional[Dict[str, str]] = None
     outcome: Optional[str] = None
@@ -103,9 +103,9 @@ class CaseLaw:
 class LegalPrinciple:
     """Representation of a legal principle or doctrine."""
     id: str
-    name: str
     description: str
     category: str
+    name: str = ""
     jurisdiction: Optional[str] = None
     source_cases: Optional[List[str]] = None
     related_principles: Optional[List[str]] = None

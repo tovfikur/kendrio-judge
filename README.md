@@ -4,7 +4,7 @@
 
 The AI Judge System is designed to analyze legal cases and provide judgment recommendations based on legal precedents, statutes, and principles. The system consists of the following high-level components:
 
-1. **Legal Knowledge Base** (completed)
+1. **Legal Knowledge Base**
 2. **Case Input Processor**
 3. **Evidence Analysis Engine**
 4. **Legal Reasoning Module**

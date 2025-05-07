@@ -13,10 +13,24 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
 def find_test_files():
-    """Find all Python files in the current directory starting with 'Test', excluding the test runner."""
+    """Find all Python files starting with 'Test' in the current directory and 'tests/' subdirectory, excluding the test runner."""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    test_files = glob.glob(os.path.join(current_dir, "Test*.py"))
+    
+    # List to store all test files
+    test_files = []
+    
+    # Check the current directory for test files
+    test_files.extend(glob.glob(os.path.join(current_dir, "Test*.py")))
+    
+    # Check the 'tests/' subdirectory for test files
+    tests_dir = os.path.join(current_dir, "tests")
+    if os.path.isdir(tests_dir):
+        test_files.extend(glob.glob(os.path.join(tests_dir, "Test*.py")))
+    
+    # Define the test runner file path (in the current directory)
     runner_file = os.path.join(current_dir, "test_runner.py")
+    
+    # Filter out the test runner and ensure files exist
     return [f for f in test_files if os.path.isfile(f) and f != runner_file]
 
 def load_test_module(test_file):
